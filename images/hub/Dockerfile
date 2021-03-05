@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM arm64v8/ubuntu:20.04
 
 # VULN_SCAN_TIME=2021-02-26_00:07:23
 
@@ -20,6 +20,7 @@ RUN apt-get update && \
       sqlite3 \
       curl \
       dnsutils \
+      libpq-dev \
       && \
     rm -rf /var/lib/apt/lists/*
 

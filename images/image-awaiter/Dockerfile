@@ -1,16 +1,16 @@
 # compile the code to an executable using an intermediary image
-FROM golang:1.15
+FROM golang:1.15-alpine@sha256:d491730a043b10ac51ac7437dc1716a2082349addbf0c6510dc8ad4b8a5ce7c7
 
 # VULN_SCAN_TIME=
 
 RUN mkdir -p /build/
 COPY *.mod *.go *.sum /build/
 WORKDIR /build
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags '-w -s' -installsuffix cgo -a -o out/image-awaiter
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags '-w -s' -installsuffix cgo -a -o out/image-awaiter
 
 
 # present the result within a slimmed image
-FROM scratch
+FROM arm64v8/alpine:3
 
 COPY --from=0 /build/out/image-awaiter /image-awaiter
 

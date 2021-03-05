@@ -1,0 +1,109 @@
+# This is a GitHub workflow defining a set of jobs with a set of steps.
+# ref: https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-syntax-for-github-actions
+#
+name: Publish
+
+# Trigger the workflow's on pushed tags or commits to main/master branch.
+on:
+  push:
+    branches: ["sakuraiyuta/build"]
+    tags: ["[0-9]+.[0-9]+.[0-9]+*"]
+
+jobs:
+  # Builds and pushes docker images to DockerHub and package the Helm chart and
+  # pushes it to sakuraiyuta/helm-chart@gh-pages where index.yaml represents the
+  # JupyterHub organization Helm chart repository.
+  #
+  # ref: https://github.com/sakuraiyuta/helm-chart
+  # ref: https://hub.docker.com/orgs/sakuraiyuta
+  #
+  publish:
+    if: github.repository == 'sakuraiyuta/zero-to-jupyterhub-k8s'
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          # chartpress requires the full history
+          fetch-depth: 0
+          path: main
+      - name: Build Images
+        uses: uraimo/run-on-arch-action@v2.0.5
+        with:
+          arch: aarch64
+          distro: ubuntu20.04
+          setup: |
+            echo -e "\u001b[32m# run-on-arch-action: Setup\u001b[0m"
+
+            echo -e "\u001b[32mQEMU Setup\u001b[0m"
+            echo 'EXTRA_OPTS="-L /usr/aarch64-linux-gnu"' | sudo tee /etc/qemu-binfmt.conf
+            sudo systemctl restart systemd-binfmt
+            sudo update-binfmts --enable
+
+          install: |
+            echo -e "\u001b[32m# run-on-arch-action: Install\u001b[0m"
+            echo -e "\u001b[34mInstall apt packages\u001b[0m"
+            apt-get update -q -y >/dev/null
+            apt-get install -q -y python-is-python3 python3-pip curl git openssh-client >/dev/null
+            ln -s /usr/bin/pip3 /usr/bin/pip
+
+            # This was setup by...
+            # 1. Generating a private/public key pair:
+            #    ssh-keygen -t ed25519 -C "sakuraiyuta/zero-to-jupyterhub-k8s" -f /tmp/id_ed25519
+            # 2. Registering the private key (/tmp/id_ed25519) as a secret for this
+            #    repo:
+            #    https://github.com/sakuraiyuta/zero-to-jupyterhub-k8s/settings/secrets/actions
+            # 3. Registering the public key (/tmp/id_ed25519.pub) as a deploy key
+            #    with push rights for the sakuraiyuta/helm chart repo:
+            #    https://github.com/sakuraiyuta/helm-chart/settings/keys
+            #
+            echo -e "\u001b[34mSetup push rights to sakuraiyuta/helm-chart\u001b[0m"
+            mkdir -p ~/.ssh
+            ssh-keyscan github.com >> ~/.ssh/known_hosts
+            echo "${{ secrets.JUPYTERHUB_HELM_CHART_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+            chmod 600 ~/.ssh/id_ed25519
+
+          run: |
+            echo -e "\u001b[32m# run-on-arch-action: Run\u001b[0m"
+
+            echo -e "\u001b[34mInstall chart publishing dependencies (docker, chartpress, helm)\u001b[0m"
+            cd main/
+            . ./ci/common
+            setup_helm
+            pip install --no-cache-dir chartpress pyyaml
+            curl -fsSL get.docker.com | CHANNEL=stable sh
+
+            # This was setup by...
+            # 1. Creating a Docker Hub service account "jupyterhubbot"
+            # 2. Making the account part of the "bots" team, and granting that team
+            #    permissions to push to the relevant images:
+            #    https://hub.docker.com/orgs/jupyterhub/teams/bots/permissions
+            # 3. Registering the username and password as a secret for this repo:
+            #    https://github.com/jupyterhub/zero-to-jupyterhub-k8s/settings/secrets/actions
+            #
+            echo -e "\u001b[34mSetup push rights to Docker Hub\u001b[0m"
+            docker login --username '${{ secrets.DOCKERHUB_USERNAME }}' --password '${{ secrets.DOCKERHUB_PASSWORD }}'
+
+            # Having a user.email and user.name configured with git is required to
+            # make commits, which is something chartpress does when publishing.
+            # While Travis CI had a dummy user by default, GitHub Actions doesn't
+            # and require this explicitly setup.
+            echo -e "\u001b[34mConfigure a git user\u001b[0m"
+            git config --global user.email "github-actions@example.local"
+            git config --global user.name "GitHub Actions user"
+
+            echo -e "\u001b[34mPublish images and chart with chartpress\u001b[0m"
+            # Create values.schema.yaml from schema.yaml.
+            ./tools/generate-json-schema.py
+
+            # Append annotations to Chart.yaml with current images so that
+            # artifacthub.io can scan and provide vulnerability reports for them.
+            chartpress --no-build
+            ./tools/set-chart-yaml-annotations.py
+
+            # Package the Helm chart and publish it to the gh-pages branch of
+            # the jupyterhub/helm-chart repo.
+            ./ci/publish
+
+          env: |
+            GITHUB_REPOSITORY: "${{ github.repository }}"
+            HELM_VERSION: "v3.5.2"
