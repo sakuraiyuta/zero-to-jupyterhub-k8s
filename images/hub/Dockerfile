@@ -20,6 +20,7 @@ RUN apt-get update && \
       sqlite3 \
       curl \
       dnsutils \
+      libpq-dev \
       && \
     rm -rf /var/lib/apt/lists/*
 
