@@ -78,8 +78,8 @@ hub:
   extraVolumes: []
   extraVolumeMounts: []
   image:
-    name: jupyterhub/k8s-hub
-    tag: "set-by-chartpress"
+    name: sakuraiyuta/jupyterhub-k8s-hub
+    tag: "0.11.1-n280.h5fc417ef"
     pullPolicy:
     pullSecrets: []
   resources:
@@ -191,7 +191,7 @@ proxy:
       runAsGroup: 65534 # nobody group
       allowPrivilegeEscalation: false
     image:
-      name: jupyterhub/configurable-http-proxy
+      name: sakuraiyuta/jupyterhub-configurable-http-proxy
       tag: 4.2.3
       pullPolicy:
       pullSecrets: []
@@ -270,8 +270,8 @@ proxy:
       runAsGroup: 65534 # nobody group
       allowPrivilegeEscalation: false
     image:
-      name: jupyterhub/k8s-secret-sync
-      tag: "set-by-chartpress"
+      name: sakuraiyuta/jupyterhub-k8s-secret-sync
+      tag: "0.11.1-n280.h5fc417ef"
       pullPolicy:
       pullSecrets: []
     resources: {}
@@ -310,8 +310,8 @@ singleuser:
     preferred: []
   networkTools:
     image:
-      name: jupyterhub/k8s-network-tools
-      tag: "set-by-chartpress"
+      name: sakuraiyuta/jupyterhub-k8s-network-tools
+      tag: "0.11.1-n280.h5fc417ef"
       pullPolicy:
       pullSecrets: []
   cloudMetadata:
@@ -364,8 +364,8 @@ singleuser:
       volumeNameTemplate: volume-{username}{servername}
       storageAccessModes: [ReadWriteOnce]
   image:
-    name: jupyterhub/k8s-singleuser-sample
-    tag: "set-by-chartpress"
+    name: sakuraiyuta/jupyterhub-k8s-singleuser-sample
+    tag: "0.11.1-n280.h5fc417ef"
     pullPolicy:
     pullSecrets: []
   startTimeout: 300
@@ -474,8 +474,8 @@ prePuller:
     enabled: true
     # image and the configuration below relates to the hook-image-awaiter Job
     image:
-      name: jupyterhub/k8s-image-awaiter
-      tag: "set-by-chartpress"
+      name: sakuraiyuta/jupyterhub-k8s-image-awaiter
+      tag: "0.11.1-n280.h5fc417ef"
       pullPolicy:
       pullSecrets: []
     containerSecurityContext:
